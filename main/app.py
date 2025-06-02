@@ -9,47 +9,41 @@ import time
 import random
 from urllib.parse import urlparse
 import logging
+import re
+
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 class HateSpeechDetector:
     def __init__(self):
-        """Initialize the hate speech detector with pre-trained model and dataset"""
         print("Loading SentenceTransformer model...")
-        self.model = SentenceTransformer('distiluse-base-multilingual-cased-v1')
+        self.model = SentenceTransformer('distiluse-base-multilingual-cased-v2')
         
-        # Load dataset kata kasar
         print("Loading hate speech dataset...")
         self.kasar_df = pd.read_csv('kalimat_kasar.csv')
         
-        # Filter hanya yang mengandung kata kasar (contains_bad_word = 1)
         self.hate_sentences = self.kasar_df[self.kasar_df['contains_bad_word'] == 1]['sentence'].tolist()
         
-        # Encode hate speech sentences
         print("Encoding hate speech sentences...")
         self.hate_embeddings = self.model.encode(self.hate_sentences, convert_to_tensor=True)
         
         print("Hate Speech Detector initialized successfully!")
     
+    
     def preprocess_text(self, text):
-        """Clean and preprocess text"""
         if not isinstance(text, str):
             return ""
         
-        # Remove URLs
         text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
         
-        # Remove mentions and hashtags (but keep the text)
         text = re.sub(r'[@#]\w+', '', text)
         
-        # Remove extra whitespace
         text = ' '.join(text.split())
         
         return text.strip()
     
-    def detect_hate_speech(self, comments, threshold=0.75):
-        """Detect hate speech in list of comments"""
+    def detect_hate_speech(self, comments, threshold=0.9):
         if not comments:
             return []
         
@@ -88,7 +82,6 @@ class HateSpeechDetector:
         return results
     
     def get_severity_level(self, score):
-        """Categorize severity based on similarity score"""
         if score >= 0.9:
             return "Sangat Tinggi"
         elif score >= 0.8:
@@ -99,73 +92,80 @@ class HateSpeechDetector:
             return "Rendah"
 
 class SocialMediaScraper:
-    def __init__(self):
+    def __init__(self, youtube_api_key=None):
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
+        self.youtube_api_key = youtube_api_key
     
     def extract_comments_from_url(self, url):
-        """Extract comments from social media URL"""
         try:
             # Determine platform
-            if 'twitter.com' in url or 'x.com' in url:
-                return self.scrape_twitter_comments(url)
-            elif 'instagram.com' in url:
-                return self.scrape_instagram_comments(url)
-            elif 'tiktok.com' in url:
-                return self.scrape_tiktok_comments(url)
+            if 'youtube.com' in url or 'youtu.be' in url:
+                return self.scrape_youtube_comments(url)
             else:
                 return []
         except Exception as e:
             logging.error(f"Error extracting comments: {str(e)}")
             return []
     
-    def scrape_twitter_comments(self, url):
-        """Scrape Twitter comments (simplified version)"""
-        # Note: This is a simplified version. In practice, you'd need Twitter API
-        # For demo purposes, we'll return some sample comments
-        sample_comments = [
-            "Postingan yang bagus sekali!",
-            "Setuju banget dengan pendapat ini",
-            "Wah keren nih informasinya",
-            "Terima kasih sudah berbagi",
-            "Sangat bermanfaat sekali"
-        ]
+    def scrape_youtube_comments(self, url):
+        if not self.youtube_api_key:
+            logging.error("YouTube API key belum diset")
+            return []
         
-        # Add some potentially offensive comments for testing
-        if random.random() > 0.5:  # 50% chance to include test offensive comments
-            sample_comments.extend([
-                "Males itu kalo kerja pagi trus gak ada yg nganter, anjing",
-                "sok geulis anjing",
-                "Lancau anjing.. stressnya aku..",
-                "ANJING!! AKUN TOLOL"
-            ])
+        video_id = self.extract_youtube_video_id(url)
+        if not video_id:
+            logging.error("Gagal mengambil video ID dari URL")
+            return []
         
-        return sample_comments[:10]  # Return max 10 comments
+        comments = []
+        base_url = "https://www.googleapis.com/youtube/v3/commentThreads"
+        
+        params = {
+            'part': 'snippet',
+            'videoId': video_id,
+            'key': self.youtube_api_key,
+            'maxResults': 100,
+            'textFormat': 'plainText'
+        }
+        
+        while True:
+            response = requests.get(base_url, params=params, timeout=10)
+            if response.status_code != 200:
+                logging.error(f"YouTube API error: {response.status_code} {response.text}")
+                break
+            
+            data = response.json()
+            items = data.get('items', [])
+            
+            for item in items:
+                top_comment = item['snippet']['topLevelComment']['snippet']['textDisplay']
+                comments.append(top_comment)
+            
+            if 'nextPageToken' in data:
+                params['pageToken'] = data['nextPageToken']
+            else:
+                break
+        
+        return comments
+
+    def extract_youtube_video_id(self, url):
+        parsed = urlparse(url)
+        
+        if 'youtu.be' in parsed.netloc:
+            return parsed.path[1:] 
+        elif 'youtube.com' in parsed.netloc:
+            qs = dict([param.split('=') for param in parsed.query.split('&') if '=' in param])
+            return qs.get('v', None)
+        return None
     
-    def scrape_instagram_comments(self, url):
-        """Scrape Instagram comments (placeholder)"""
-        # Instagram requires authentication, so this is a placeholder
-        return [
-            "Beautiful post! 😍",
-            "Love this content",
-            "Amazing work!",
-            "Thanks for sharing"
-        ]
-    
-    def scrape_tiktok_comments(self, url):
-        """Scrape TikTok comments (placeholder)"""
-        # TikTok also requires special handling
-        return [
-            "So funny! 😂",
-            "Great video",
-            "Love it!",
-            "Nice content"
-        ]
+
+YOUTUBE_API_KEY = 'AIzaSyDsOT9hRkxf_M9FnonbZIYqc0OirHIV59s'
 
 # Initialize components
 detector = HateSpeechDetector()
-scraper = SocialMediaScraper()
+scraper = SocialMediaScraper(youtube_api_key=YOUTUBE_API_KEY)
 
 @app.route('/')
 def index():
