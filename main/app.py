@@ -13,6 +13,10 @@ import time
 import random
 from urllib.parse import urlparse
 import logging
+from dotenv import load_dotenv
+import os
+
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
 
 app = Flask(__name__)
@@ -309,7 +313,6 @@ class SocialMediaScraper:
         return None
 
 
-YOUTUBE_API_KEY = 'AIzaSyDsOT9hRkxf_M9FnonbZIYqc0OirHIV59s'
 
 detector = HateSpeechDetector()
 scraper = SocialMediaScraper(youtube_api_key=YOUTUBE_API_KEY)
