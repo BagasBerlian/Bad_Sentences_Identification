@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Deteksi Ujaran Kebencian</title>
+    <link rel="stylesheet"
+        href="../style/style.css">
+</head>
+
+<body>
+    <h1>Deteksi Komentar Kasar di Twitter</h1>
+    <form method="post">
+        <input type="text" name="url"
+            placeholder="Masukkan URL Tweet"
+            required />
+        <button type="submit">Analisa</button>
+    </form>
+
+    {% if results %}
+    <h2>Komentar Kasar Terdeteksi:</h2>
+    <ul>
+        {% for r in results %}
+        <li>{{ r.komentar }} (Skor: {{
+            r.similarity }})</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</body>
+
+</html>
