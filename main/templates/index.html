@@ -1,30 +1,306 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 
 <head>
-    <title>Deteksi Ujaran Kebencian</title>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+    <title>Hate Speech Detection - Deteksi Ujaran
+        Kebencian</title>
     <link rel="stylesheet"
-        href="../style/style.css">
+        href="{{ url_for('static', filename='style/style.css') }}">
+    <link
+        href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+        rel="stylesheet">
+    <link
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        rel="stylesheet">
 </head>
 
 <body>
-    <h1>Deteksi Komentar Kasar di Twitter</h1>
-    <form method="post">
-        <input type="text" name="url"
-            placeholder="Masukkan URL Tweet"
-            required />
-        <button type="submit">Analisa</button>
-    </form>
+    <div class="container-fluid main-container">
+        <div
+            class="row justify-content-center w-100">
+            <div class="col-lg-8 col-xl-6">
+                <div class="card">
+                    <div
+                        class="card-header text-center">
+                        <h2 class="mb-0">
+                            <i
+                                class="fas fa-shield-alt me-2"></i>
+                            Hate Speech Detection
+                        </h2>
+                        <p
+                            class="mb-0 mt-2 opacity-75">
+                            Deteksi Ujaran
+                            Kebencian di Media
+                            Sosial</p>
+                    </div>
 
-    {% if results %}
-    <h2>Komentar Kasar Terdeteksi:</h2>
-    <ul>
-        {% for r in results %}
-        <li>{{ r.komentar }} (Skor: {{
-            r.similarity }})</li>
-        {% endfor %}
-    </ul>
-    {% endif %}
+                    <div class="card-body">
+                        <!-- Input Form -->
+                        <form id="analysisForm">
+                            <div class="mb-4">
+                                <label
+                                    for="urlInput"
+                                    class="form-label fw-bold">
+                                    <i
+                                        class="fas fa-link me-2"></i>URL
+                                    Postingan
+                                    Media Sosial
+                                </label>
+                                <input type="url"
+                                    class="form-control"
+                                    id="urlInput"
+                                    placeholder="Masukkan URL dari Twitter, Instagram, atau TikTok"
+                                    required>
+                            </div>
+
+                            <div class="mb-4">
+                                <label
+                                    for="thresholdInput"
+                                    class="form-label fw-bold">
+                                    <i
+                                        class="fas fa-sliders-h me-2"></i>Tingkat
+                                    Sensitivitas
+                                </label>
+                                <select
+                                    class="form-control"
+                                    id="thresholdInput">
+                                    <option
+                                        value="0.7">
+                                        Rendah
+                                        (0.7) -
+                                        Lebih
+                                        Permisif
+                                    </option>
+                                    <option
+                                        value="0.75"
+                                        selected>
+                                        Sedang
+                                        (0.75) -
+                                        Seimbang
+                                    </option>
+                                    <option
+                                        value="0.8">
+                                        Tinggi
+                                        (0.8) -
+                                        Lebih
+                                        Ketat
+                                    </option>
+                                    <option
+                                        value="0.85">
+                                        Sangat
+                                        Tinggi
+                                        (0.85) -
+                                        Paling
+                                        Ketat
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div
+                                class="d-grid gap-2">
+                                <button
+                                    type="submit"
+                                    class="btn btn-primary btn-lg">
+                                    <i
+                                        class="fas fa-search me-2"></i>Analisis
+                                    Sekarang
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-secondary"
+                                    id="testBtn">
+                                    <i
+                                        class="fas fa-flask me-2"></i>Test
+                                    dengan Data
+                                    Sample
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Loading Spinner -->
+                        <div class="loading-spinner"
+                            id="loadingSpinner">
+                            <div class="spinner-border text-primary"
+                                role="status">
+                                <span
+                                    class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-3">
+                                Menganalisis
+                                komentar...</p>
+                        </div>
+
+                        <!-- Results Container -->
+                        <div id="resultsContainer"
+                            style="display: none;">
+                            <!-- Statistics -->
+                            <div
+                                class="stats-container">
+                                <div class="row">
+                                    <div
+                                        class="col-4 stat-item">
+                                        <div class="stat-number"
+                                            id="totalComments">
+                                            0
+                                        </div>
+                                        <div
+                                            class="stat-label">
+                                            Total
+                                            Komentar
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="col-4 stat-item">
+                                        <div class="stat-number text-danger"
+                                            id="hateComments">
+                                            0
+                                        </div>
+                                        <div
+                                            class="stat-label">
+                                            Ujaran
+                                            Kebencian
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="col-4 stat-item">
+                                        <div class="stat-number text-success"
+                                            id="cleanComments">
+                                            0
+                                        </div>
+                                        <div
+                                            class="stat-label">
+                                            Komentar
+                                            Bersih
+                                        </div>
+                                    </div>
+                                </div>
+                                <div
+                                    class="text-center mt-3">
+                                    <span
+                                        class="platform-badge"
+                                        id="platformBadge">Unknown
+                                        Platform</span>
+                                </div>
+                            </div>
+
+                            <!-- Results List -->
+                            <div id="resultsList">
+                                <h5 class="mb-3">
+                                    <i
+                                        class="fas fa-exclamation-triangle text-warning me-2"></i>
+                                    Komentar Yang
+                                    Terdeteksi
+                                    Mengandung
+                                    Ujaran
+                                    Kebencian
+                                </h5>
+                                <div
+                                    id="hateCommentsList">
+                                </div>
+                            </div>
+
+                            <!-- No Results Message -->
+                            <div id="noResultsMessage"
+                                style="display: none;">
+                                <div
+                                    class="alert alert-success text-center">
+                                    <i
+                                        class="fas fa-check-circle fa-3x mb-3"></i>
+                                    <h4>Tidak Ada
+                                        Ujaran
+                                        Kebencian
+                                        Terdeteksi
+                                    </h4>
+                                    <p>Semua
+                                        komentar
+                                        yang
+                                        dianalisis
+                                        tampak
+                                        bersih dan
+                                        tidak
+                                        mengandung
+                                        ujaran
+                                        kebencian.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Error Container -->
+                        <div id="errorContainer"
+                            style="display: none;">
+                            <div
+                                class="alert alert-danger">
+                                <i
+                                    class="fas fa-exclamation-triangle me-2"></i>
+                                <span
+                                    id="errorMessage">Terjadi
+                                    kesalahan</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Information Panel -->
+                <div class="card mt-4">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i
+                                class="fas fa-info-circle text-info me-2"></i>
+                            Informasi Aplikasi
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i
+                                        class="fas fa-globe me-2"></i>Platform
+                                    yang Didukung:
+                                </h6>
+                                <ul
+                                    class="list-unstyled ms-3">
+                                    <li><i
+                                            class="fab fa-twitter text-info me-2"></i>Twitter/X
+                                    </li>
+                                    <li><i
+                                            class="fab fa-instagram text-danger me-2"></i>Instagram
+                                    </li>
+                                    <li><i
+                                            class="fab fa-tiktok text-dark me-2"></i>TikTok
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i
+                                        class="fas fa-cogs me-2"></i>Teknologi:
+                                </h6>
+                                <ul
+                                    class="list-unstyled ms-3">
+                                    <li><i
+                                            class="fas fa-brain text-primary me-2"></i>Sentence
+                                        Transformers
+                                    </li>
+                                    <li><i
+                                            class="fas fa-language text-success me-2"></i>Multilingual
+                                        Model</li>
+                                    <li><i
+                                            class="fas fa-chart-line text-warning me-2"></i>Cosine
+                                        Similarity
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script
+        src="{{ url_for('static', filename='js/index.js') }}"></script>
 </body>
 
 </html>
