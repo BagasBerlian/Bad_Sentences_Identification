@@ -66,7 +66,6 @@ class HateSpeechDetector:
         print("Hate Speech Detector initialized successfully!")
     
     def filter_hate_sentences(self, sentences):
-        """Filter hate sentences untuk menghapus yang tidak relevan"""
         filtered = []
         for sentence in sentences:
             if len(sentence.split()) < 3:
@@ -396,5 +395,5 @@ def get_platform_name(url):
         return 'Unknown'
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-    # app.run(debug=True, host='0.0.0.0', port=5000)
+    # app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(debug=True, host='0.0.0.0', port=5000)
